@@ -2,12 +2,16 @@ package catalog
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"net"
 
-	"github.com/hauzanrafiattallah/GO_Microservices/account/pb"
+	"github.com/hauzanrafiattallah/GO_Microservices/catalog/pb"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 type grpcServer struct {
-	pb.UnimplementedAccountServiceServer
 	service Service
 }
 
@@ -17,23 +21,48 @@ func ListenGRPC(s Service, port int) error {
 		return err
 	}
 	serv := grpc.NewServer()
-	pb.RegisterAccountServiceServer(serv, &grpcServer{
-		UnimplementedAccountServiceServer: pb.UnimplementedAccountServiceServer{},
-		service:                           s,
-	})
+	pb.RegisterCatalogServiceServer(serv, &grpcServer{s})
 	reflection.Register(serv)
 	return serv.Serve(lis)
 }
 
-func (s *grpcServer) PostProduct(ctx context.Context, r *pb.PostProductRequest)  {
+func (s *grpcServer) PostProduct(ctx context.Context, r *pb.PostProductRequest) (*pb.PostAccountResponse, error) {
+	p, err := s.service.PostProduct(ctx, r.Name, r.Description, r.Price)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	return &pb.PostAccountResponse{Product: &pb.Product{Id: p.ID, Name: p.Name, Description: p.Description, Price: p.Price}}, nil
+}
+
+func (s *grpcServer) GetProduct(ctx context.Context, r *pb.GetProductRequest) (*pb.GetProductResponse, error) {
+	p, err := s.service.GetProduct(ctx, r.Id)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	return &pb.GetProductResponse{Product: &pb.Product{Id: p.ID, Name: p.Name, Description: p.Description, Price: p.Price}}, nil
 
 }
 
-func (s *grpcServer) GetProduct {
-	
-}
+func (s *grpcServer) GetProducts(ctx context.Context, r *pb.GetProductsRequest) (*pb.GetProductsResponse, error) {
+	var res []Product
+	var err error
+	if r.Query != "" {
+		res, err = s.service.SearchProducts(ctx, r.Query, r.Skip, r.Take)
+	} else if len(r.Ids) != 0 {
+		res, err = s.service.GetProductByIDs(ctx, r.Ids)
+	} else {
+		res, err = s.service.GetProducts(ctx, r.Skip, r.Take)
+	}
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	products := []*pb.Product{}
+	for _, p := range res {
+		products = append(products, &pb.Product{Id: p.ID, Name: p.Name, Description: p.Description, Price: p.Price})
+	}
 
-func (s *grpcServer) GetProducts {
-	
+	return &pb.GetProductsResponse{Products: products}, nil
 }
-
