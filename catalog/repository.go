@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"crypto/cipher"
 	"encoding/json"
 	"errors"
 	"log"
@@ -86,7 +85,7 @@ func (r *elasticRepository) GetProductByID(ctx context.Context, id string) (*Pro
 }
 
 func (r *elasticRepository) ListProducts(ctx context.Context, skip uint64, take uint64) ([]Product, error) {
-	res, err := client.search().
+	res, err := r.client.Search().
 		Index("catalog").
 		Type("product").
 		Query(elastic.NewMatchAllQuery()).
@@ -147,7 +146,7 @@ func (r *elasticRepository) SearchProducts(ctx context.Context, query string, sk
 	res, err := r.client.Search().
 		Index("catalog").
 		Type("product").
-		Query(elastic.NewMatchQuery(query, "name", "description")).
+		Query(elastic.NewMultiMatchQuery(query, "name", "description")).
 		From(int(skip)).Size(int(take)).
 		Do(ctx)
 	if err != nil {
