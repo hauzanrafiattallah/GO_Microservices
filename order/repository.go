@@ -46,7 +46,7 @@ func (r *postgresRepository) putOrder(ctx context.Contex, o order) (err error) {
 	}()
 	tx.ExecContext(
 		ctx,
-		"INSERT INTO orders(id, created_at, account_id, total_price) VALUES ($1, $2, $3. $5)"
+		"INSERT INTO orders(id, created_at, account_id, total_price) VALUES ($1, $2, $3. $5)",
 		o.ID,
 		o.CreatedAt,
 		o.AccountId,
@@ -56,7 +56,7 @@ func (r *postgresRepository) putOrder(ctx context.Contex, o order) (err error) {
 		return
 	}
 	stmt, _ := tx.PrepareContext(ctx, pq.CopyIn("orders_products", "order_id", "product_id", "quantity"))
-	for _, p := range o.Products{
+	for _, p := range o.Products {
 		_, err = stmt.ExecContext(ctx, o.ID, p.ID, p.quantity)
 		if err != nil {
 			return
@@ -83,7 +83,7 @@ func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID 
     FROM orders o 
     JOIN order_products op ON o.id = op.order_id
     WHERE o.account_id = $1
-    ORDER BY o.id, o.account_id`,)
+    ORDER BY o.id, o.account_id`)
 
 	if err != nil {
 		return nil, err
@@ -101,34 +101,33 @@ func (r *postgresRepository) GetOrdersForAccount(ctx context.Context, accountID 
 			&order.TotalPrice,
 			&orderedProduct.ID,
 			&orderedProduct.Quantity,
-			);
-		err != nil {
+		); err != nil {
 			return nil, err
 		}
 		if lastOrder.ID != "" && lastOrder.ID != order.ID {
 			newOrder := Order{
-				ID: lastOrder.ID,
-				AccountID: lastOrder.AccountID,
-				CreatedAt: lastOrder.CreatedAt,
+				ID:         lastOrder.ID,
+				AccountID:  lastOrder.AccountID,
+				CreatedAt:  lastOrder.CreatedAt,
 				TotalPrice: lastOrder.TotalPrice,
-				Products: lastOrder.Products,
+				Products:   lastOrder.Products,
 			}
 			orders = append(orders, newOrder)
 			products = []OrderedProduct{}
 		}
 		products = append(products, OrderedProduct{
-			ID: orderedProduct.ID,
+			ID:       orderedProduct.ID,
 			Quantity: orderedProduct.Quantity,
 		})
 		*lastOrder = *order
 	}
 	if lastOrder != nil {
 		newOrder := Order{
-			ID: lastOrder.ID,
-			AccountID: lastOrder.AccountID,
-			CreatedAt: lastOrder.CreatedAt,
+			ID:         lastOrder.ID,
+			AccountID:  lastOrder.AccountID,
+			CreatedAt:  lastOrder.CreatedAt,
 			TotalPrice: lastOrder.TotalPrice,
-			Products: lastOrder.Products,
+			Products:   lastOrder.Products,
 		}
 		orders = append(orders, newOrder)
 	}
