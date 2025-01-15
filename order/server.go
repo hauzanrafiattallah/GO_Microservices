@@ -15,6 +15,7 @@ import (
 )
 
 type grpcServer struct {
+	pb.UnimplementedOrderServiceServer
 	service       Service
 	accountClient *account.Client
 	catalogClient *catalog.Client
@@ -25,11 +26,13 @@ func ListenGRPC(s Service, accountURL, catalogURL string, port int) error {
 	if err != nil {
 		return err
 	}
+
 	catalogClient, err := catalog.NewClient(catalogURL)
 	if err != nil {
 		accountClient.Close()
 		return err
 	}
+
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		accountClient.Close()
@@ -38,7 +41,12 @@ func ListenGRPC(s Service, accountURL, catalogURL string, port int) error {
 	}
 
 	serv := grpc.NewServer()
-	pb.RegisterOrderServiceServer(serv, &grpcServer{s, accountClient, catalogClient})
+	pb.RegisterOrderServiceServer(serv, &grpcServer{
+		UnimplementedOrderServiceServer: pb.UnimplementedOrderServiceServer{},
+		service:                         s,
+		accountClient:                   accountClient,
+		catalogClient:                   catalogClient,
+	})
 	reflection.Register(serv)
 
 	return serv.Serve(lis)
@@ -95,12 +103,12 @@ func (s *grpcServer) PostOrder(ctx context.Context, r *pb.PostOrderRequest) (*pb
 	// Make response Order
 	orderProto := &pb.Order{
 		Id:         order.ID,
-		AccountId:  order.AccountId,
+		AccountId:  order.AccountID,
 		TotalPrice: order.TotalPrice,
 		Products:   []*pb.Order_OrderProduct{},
 	}
 	orderProto.CreatedAt, _ = order.CreatedAt.MarshalBinary()
-	for _, product := range order.Products {
+	for _, p := range order.Products {
 		orderProto.Products = append(orderProto.Products, &pb.Order_OrderProduct{
 			Id:          p.ID,
 			Name:        p.Name,
