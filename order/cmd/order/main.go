@@ -1,11 +1,12 @@
 package main
 
 import (
+	"log"
+	"time"
+
 	"github.com/hauzanrafiattallah/GO_Microservices/order"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/tinrab/retry"
-	"log"
-	"time"
 )
 
 type Config struct {
@@ -20,8 +21,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	var r order.Repository
-	retry.ForeverSleep(2*time.Secon, func(_ int) (err error) {
+	retry.ForeverSleep(2*time.Second, func(_ int) (err error) {
 		r, err = order.NewPostgresRepository(cfg.DatabaseURL)
 		if err != nil {
 			log.Println(err)
@@ -29,6 +31,7 @@ func main() {
 		return
 	})
 	defer r.Close()
+	
 	log.Println("Listening on port 8080...")
 	s := order.NewService(r)
 	log.Fatal(order.ListenGRPC(s, cfg.AccountURL, cfg.CatalogURL, 8080))
